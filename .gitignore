@@ -1,0 +1,14 @@
+.venv/
+venv/
+**/dist/
+**/build/
+*.egg-info/
+**/__pycache__/
+*.py[cod]
+*.egg
+.pytest_cache/
+.ruff_cache/
+_test*.mp4
+_silent*.mp4
+_speed*.mp4
+_logo.png

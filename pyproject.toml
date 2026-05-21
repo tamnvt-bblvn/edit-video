@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edit-video"
+version = "0.1.0"
+description = "CLI to scale, speed-adjust, and logo-overlay videos with FFmpeg"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.9",
+    "httpx>=0.27",
+]
+web = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.32,<1",
+    "python-multipart>=0.0.17",
+    "jinja2>=3.1,<4",
+]
+
+[project.scripts]
+edit_video = "edit_video.cli:main"
+edit_video_web = "edit_video.web.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.package-data]
+edit_video = ["py.typed"]
+"edit_video.web" = [
+    "templates/index.html",
+    "static/styles.css",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

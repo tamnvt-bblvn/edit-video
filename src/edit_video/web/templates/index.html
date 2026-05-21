@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>edit-video — chỉnh video & watermark</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-form">Chuyển tới biểu mẫu</a>
+
+    <div class="page">
+      <div class="page-noise" aria-hidden="true"></div>
+
+      <header class="site-header">
+        <div class="site-header-inner">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 7h4l10 10V7h2v13h-4L7 10v10H5V7h-.8"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <div class="brand-text">
+              <p class="brand-kicker">Video encode studio</p>
+              <h1>edit-video</h1>
+              <p class="tagline">
+                Chuẩn hóa video: scale, tốc độ, watermark — FFmpeg. Hỗ trợ
+                <strong>nhiều video một lần</strong> (ZIP). Dữ liệu xử lý tạm thời, không lưu sau khi tải.
+              </p>
+            </div>
+          </div>
+          <!-- <ul class="meta-badges" aria-label="Thông tin dịch vụ">
+            <li class="pill">FFmpeg backend</li>
+            <li class="pill pill-accent">Privacy-first</li>
+            <li class="pill"><span class="mono">max {{ max_upload_mb }} MB / file</span></li>
+            <li class="pill"><span class="mono">tối đa {{ max_batch_videos }} video / batch</span></li>
+          </ul> -->
+        </div>
+        <p class="header-footnote" role="note">
+          <span class="header-footnote-main">
+            Giới hạn đang áp dụng:
+            <strong>{{ max_upload_mb }} MB</strong>/file · tối đa <strong>{{ max_batch_videos }}</strong> video/batch ·
+            máy chủ cần có <code>ffmpeg</code> và <code>ffprobe</code>.
+          </span>
+          <span class="header-footnote-hint">
+            Đổi giới hạn qua <code>EDIT_VIDEO_MAX_UPLOAD_MB</code>, <code>EDIT_VIDEO_MAX_BATCH</code>.
+          </span>
+        </p>
+      </header>
+
+      <main class="main" id="main">
+        <form id="main-form" class="stack" autocomplete="off" aria-describedby="form-help" novalidate>
+          <p id="form-help" class="visually-hidden">
+            Chọn một hoặc nhiều video và một logo, điều chỉnh thông số; một file thì tải MP4, nhiều file thì tải ZIP.
+          </p>
+
+          <section class="panel" aria-labelledby="sec-input-heading">
+            <header class="panel-head">
+              <div class="panel-head-row">
+                <span class="step-badge" aria-hidden="true">1</span>
+                <div class="panel-head-copy">
+                  <span class="eyebrow">Đầu vào</span>
+                  <h2 id="sec-input-heading" class="panel-title">Video &amp; watermark</h2>
+                </div>
+              </div>
+              <p class="panel-desc">Một hoặc nhiều video (cùng định dạng cho phép), một logo áp dụng cho tất cả.</p>
+            </header>
+
+            <div class="upload-grid">
+              <div class="upload-field">
+                <label class="field-label" for="videos">Video nguồn</label>
+                <label class="dropzone dropzone-card" id="dz-video" data-dropzone>
+                  <input
+                    id="videos"
+                    name="videos"
+                    type="file"
+                    accept="video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v"
+                    multiple
+                    required
+                    class="dropzone-input"
+                  />
+                  <span class="dropzone-surface">
+                    <span class="dz-icon" aria-hidden="true">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M4 8.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.5M4 8.5 4 7l4-3h8l4 3v1.5M4 8.5l6.2 4.96a2 2 0 0 0 2.48 0L19 8.5M12 15v6"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span class="dz-title">Kéo thả một hoặc nhiều video · bấm để chọn</span>
+                    <span class="dz-hint">MP4 · WebM · MOV · MKV… · tối đa {{ max_batch_videos }} file / lần</span>
+                    <span class="file-chip" id="video-chip" hidden></span>
+                  </span>
+                </label>
+              </div>
+
+              <div class="upload-field">
+                <label class="field-label" for="logo">Logo / icon watermark</label>
+                <label class="dropzone dropzone-card" id="dz-logo" data-dropzone>
+                  <input
+                    id="logo"
+                    name="logo"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    required
+                    class="dropzone-input"
+                  />
+                  <span class="dropzone-surface">
+                    <span class="dz-icon" aria-hidden="true">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                        <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.6" />
+                        <circle cx="9" cy="9" r="1.8" fill="currentColor" />
+                        <path
+                          d="M6 17l4-5 3 4 5-7"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span class="dz-title">Kéo thả ảnh logo hoặc bấm chọn</span>
+                    <span class="dz-hint">PNG · JPG · WebP · GIF</span>
+                    <span class="file-chip" id="logo-chip" hidden></span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel panel-accent" aria-labelledby="sec-opt-heading">
+            <header class="panel-head">
+              <div class="panel-head-row">
+                <span class="step-badge" aria-hidden="true">2</span>
+                <div class="panel-head-copy">
+                  <span class="eyebrow">Xuất</span>
+                  <h2 id="sec-opt-heading" class="panel-title">Thông số encode</h2>
+                </div>
+              </div>
+              <p class="panel-desc">
+                Mặc định <strong>1080p</strong>, nền <strong>blur</strong> hai bên (video dọc giữa giống reel), logo
+                <strong>góc phải-trên</strong> trên khung nội dung. Chọn &quot;viền đen&quot; nếu muốn pad cổ điển.
+              </p>
+            </header>
+
+            <fieldset class="preset-fieldset">
+              <legend class="fieldset-legend">Preset kích thước nhanh</legend>
+              <div class="chip-row" id="preset-chips" role="group" aria-label="Preset độ phân giải">
+                <button type="button" class="chip" data-w="854" data-h="480">480p</button>
+                <button type="button" class="chip" data-w="1280" data-h="720">720p</button>
+                <button type="button" class="chip is-active" data-w="1920" data-h="1080">1080p</button>
+                <button type="button" class="chip" data-w="3840" data-h="2160">4K</button>
+              </div>
+            </fieldset>
+
+            <div class="field-grid">
+              <div class="field">
+                <label for="width">Chiều rộng (px)</label>
+                <input id="width" name="width" type="number" min="16" max="7680" value="1920" required />
+              </div>
+              <div class="field">
+                <label for="height">Chiều cao (px)</label>
+                <input id="height" name="height" type="number" min="16" max="4320" value="1080" required />
+              </div>
+              <div class="field field-span">
+                <label for="speed">Tốc độ phát <span class="label-hint">1 = chuẩn · 2 = nhanh gấp đôi</span></label>
+                <input id="speed" name="speed" type="number" min="0.05" max="64" step="0.05" value="1" required />
+              </div>
+              <div class="field field-span">
+                <label for="volume_db_num">
+                  Âm lượng (dB)
+                  <span class="label-hint">0 = giữ nguyên · âm = nhỏ · dương = to (+6 ≈ gấp đôi áp suất)</span>
+                </label>
+                <div class="volume-row">
+                  <input
+                    id="volume_slider"
+                    type="range"
+                    min="-24"
+                    max="24"
+                    step="0.5"
+                    value="0"
+                    aria-label="Kéo để chỉnh âm lượng trong khoảng −24…+24 dB"
+                  />
+                  <div class="volume-num-wrap">
+                    <button type="button" class="btn-step" id="vol_minus" aria-label="Giảm 1 dB">−</button>
+                    <input
+                      id="volume_db_num"
+                      name="volume_db"
+                      type="number"
+                      min="-96"
+                      max="24"
+                      step="0.5"
+                      value="0"
+                      aria-label="Giá trị điều chỉnh âm thanh dạng dB"
+                    />
+                    <button type="button" class="btn-step" id="vol_plus" aria-label="Tăng 1 dB">+</button>
+                    <span class="volume-unit" aria-hidden="true">dB</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-grid cols-2">
+              <div class="field">
+                <label for="overlay_x">
+                  Lề logo ngang (px)
+                  <span class="label-hint">trái/phải tuỳ góc neo · trên khung nội dung</span>
+                </label>
+                <input id="overlay_x" name="overlay_x" type="number" min="0" max="8192" value="12" />
+              </div>
+              <div class="field">
+                <label for="overlay_y">
+                  Lề logo dọc (px)
+                  <span class="label-hint">trên/dưới tuỳ góc neo</span>
+                </label>
+                <input id="overlay_y" name="overlay_y" type="number" min="0" max="8192" value="12" />
+              </div>
+              <div class="field">
+                <label for="logo_max_side_pct">
+                  Logo theo khung (% cạnh dài)
+                  <span class="label-hint">Dựa trên max(chiều ngang, chiều dọc) đầu ra — 1080×1920 và 1920×1080 cho cùng cỡ logo · ảnh nhỏ được phóng to · 0 = dùng px · thường 8–15%</span>
+                </label>
+                <input
+                  id="logo_max_side_pct"
+                  name="logo_max_side_pct"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.5"
+                  value="12"
+                />
+              </div>
+              <div class="field">
+                <label for="logo_max_side">
+                  Cạnh tối đa logo (px)
+                  <span class="label-hint">Chỉ khi % = 0 · cạnh dài logo ≈ giá trị này (ảnh nhỏ được phóng to) · 0 = pixel gốc</span>
+                </label>
+                <input id="logo_max_side" name="logo_max_side" type="number" min="0" max="4096" step="1" value="120" />
+              </div>
+            </div>
+
+            <div class="field-grid cols-2">
+              <div class="field">
+                <fieldset class="choice-field">
+                  <legend>Khi khác tỉ lệ với khung ra</legend>
+                  <div class="choice-chip-row">
+                    <label class="choice-chip">
+                      <input type="radio" name="frame_style" value="blur" checked />
+                      <span>Blur (giống reel)</span>
+                    </label>
+                    <label class="choice-chip">
+                      <input type="radio" name="frame_style" value="pad" />
+                      <span>Viền đen</span>
+                    </label>
+                    <label class="choice-chip">
+                      <input type="radio" name="frame_style" value="stretch" />
+                      <span>Kéo giãn full khung</span>
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+              <div class="field">
+                <fieldset class="choice-field">
+                  <legend>Góc đặt logo</legend>
+                  <div class="choice-chip-row choice-chip-row--grid">
+                    <label class="choice-chip">
+                      <input type="radio" name="logo_anchor" value="tl" />
+                      <span>Trên-trái</span>
+                    </label>
+                    <label class="choice-chip">
+                      <input type="radio" name="logo_anchor" value="tr" checked />
+                      <span>Trên-phải</span>
+                    </label>
+                    <label class="choice-chip">
+                      <input type="radio" name="logo_anchor" value="bl" />
+                      <span>Dưới-trái</span>
+                    </label>
+                    <label class="choice-chip">
+                      <input type="radio" name="logo_anchor" value="br" />
+                      <span>Dưới-phải</span>
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel panel-nested panel-advanced-wrap">
+            <details class="accordion">
+              <summary class="accordion-summary">
+                <span class="accordion-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.6" />
+                    <path
+                      d="M12 3v2m0 14v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M3 12h2m14 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="accordion-title-wrap">
+                  <span class="accordion-title">Tuỳ chọn nâng cao</span>
+                  <span class="accordion-sub">Sigma blur · x264 · CRF · AAC · FPS logo</span>
+                </span>
+              </summary>
+              <div class="accordion-body">
+                <div class="field-grid cols-4">
+                  <div class="field">
+                    <label for="logo_fps">Logo FPS</label>
+                    <input id="logo_fps" name="logo_fps" type="number" min="0.1" max="120" step="0.1" value="25" />
+                  </div>
+                  <div class="field">
+                    <label for="blur_sigma">Sigma blur nền</label>
+                    <input id="blur_sigma" name="blur_sigma" type="number" min="0.5" max="100" step="0.5" value="26" />
+                  </div>
+                  <div class="field">
+                    <label for="crf">CRF <span class="label-hint">18–28 thường dùng</span></label>
+                    <input id="crf" name="crf" type="number" min="0" max="51" value="23" />
+                  </div>
+                  <div class="field">
+                    <label for="preset">Preset x264</label>
+                    <select id="preset" name="preset">
+                      {% for opt in preset_options %}
+                      <option value="{{ opt.value }}"{% if opt.selected %} selected{% endif %}>{{ opt.value }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="audio_bitrate">Bitrate AAC</label>
+                    <input id="audio_bitrate" name="audio_bitrate" type="text" value="192k" />
+                  </div>
+                </div>
+              </div>
+            </details>
+          </section>
+
+          <div class="cta-bar">
+            <button type="submit" class="btn-primary" id="submitBtn">
+              <span class="btn-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 4v12m0 0 4-4m-4 4-4-4M6 20h12"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <span class="btn-label">Xử lý &amp; tải kết quả</span>
+              <span class="btn-glow" aria-hidden="true"></span>
+            </button>
+            <div class="status-inline" aria-live="polite" aria-atomic="true">
+              <span class="spinner" id="busy" hidden aria-hidden="true"></span>
+              <span id="busy-text" hidden>Đang encode với FFmpeg…</span>
+            </div>
+          </div>
+
+          <output class="feedback" id="banner" role="status" aria-live="polite"></output>
+        </form>
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <span class="footer-brand">edit-video</span>
+          <span class="footer-div line" aria-hidden="true"></span>
+          <span class="footer-item">API <code class="mono footer-code">POST /api/process</code></span>
+          <span class="footer-div dot" aria-hidden="true">·</span>
+          <span class="footer-item">Health <code class="mono footer-code">GET /health</code></span>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        const form = document.getElementById("main-form");
+        const banner = document.getElementById("banner");
+        const btn = document.getElementById("submitBtn");
+
+        /** @type {HTMLInputElement} */
+        const vIn = document.getElementById("videos");
+        /** @type {HTMLInputElement} */
+        const lIn = document.getElementById("logo");
+        const busy = document.getElementById("busy");
+        const busyText = document.getElementById("busy-text");
+        /** @type {HTMLElement} */
+        const chipRow = document.getElementById("preset-chips");
+
+        /** @type {HTMLElement} */
+        const wField = document.getElementById("width");
+        /** @type {HTMLElement} */
+        const hField = document.getElementById("height");
+
+        function fmtBytes(bytes) {
+          if (!bytes && bytes !== 0) return "";
+          const u = ["B", "KB", "MB", "GB"];
+          let i = 0,
+            n = bytes;
+          while (n >= 1024 && i < u.length - 1) {
+            n /= 1024;
+            i++;
+          }
+          const d = i ? n.toFixed(1) : String(n);
+          return d.replace(/\.0$/, "") + " " + u[i];
+        }
+
+        function bindMultiVideoChip(input, chipEl, dzRoot) {
+          function paint() {
+            const list = input.files;
+            if (!list || list.length === 0) {
+              chipEl.hidden = true;
+              chipEl.textContent = "";
+              dzRoot?.classList.remove("has-file");
+              return;
+            }
+            dzRoot?.classList.add("has-file");
+            chipEl.hidden = false;
+            let total = 0;
+            const names = [];
+            for (let i = 0; i < list.length; i++) {
+              total += list[i].size;
+              names.push(list[i].name);
+            }
+            const preview = names.length <= 2 ? names.join(", ") : `${names.length} file`;
+            chipEl.textContent = preview + " · " + fmtBytes(total);
+          }
+
+          input.addEventListener("change", paint);
+
+          dzRoot?.addEventListener("dragenter", () => dzRoot.classList.add("is-drag"));
+          dzRoot?.addEventListener("dragleave", () => dzRoot.classList.remove("is-drag"));
+          dzRoot?.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dzRoot.classList.add("is-drag");
+          });
+          dzRoot?.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dzRoot.classList.remove("is-drag");
+            const raw = e.dataTransfer?.files;
+            if (!raw || !raw.length) return;
+            const dt = new DataTransfer();
+            for (let i = 0; i < raw.length; i++) {
+              const file = raw[i];
+              const vidOk =
+                (file.type && file.type.startsWith("video/")) || /\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(file.name);
+              if (vidOk) dt.items.add(file);
+            }
+            if (!dt.files.length) return;
+            input.files = dt.files;
+            paint();
+          });
+
+          paint();
+        }
+
+        function bindFileChip(input, chipEl, dzRoot) {
+          function paint() {
+            const f = input.files && input.files[0];
+            if (!f) {
+              chipEl.hidden = true;
+              chipEl.textContent = "";
+              dzRoot?.classList.remove("has-file");
+              return;
+            }
+            dzRoot?.classList.add("has-file");
+            chipEl.hidden = false;
+            chipEl.textContent = f.name + " · " + fmtBytes(f.size);
+          }
+
+          input.addEventListener("change", paint);
+
+          dzRoot?.addEventListener("dragenter", () => dzRoot.classList.add("is-drag"));
+          dzRoot?.addEventListener("dragleave", () => dzRoot.classList.remove("is-drag"));
+          dzRoot?.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dzRoot.classList.add("is-drag");
+          });
+          dzRoot?.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dzRoot.classList.remove("is-drag");
+            const file = e.dataTransfer?.files?.[0];
+            if (!file) return;
+            if (input === lIn) {
+              const imgOk = (file.type && file.type.startsWith("image/")) || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+              if (!imgOk) return;
+            }
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            paint();
+          });
+
+          paint();
+        }
+
+        bindMultiVideoChip(vIn, document.getElementById("video-chip"), document.getElementById("dz-video"));
+        bindFileChip(lIn, document.getElementById("logo-chip"), document.getElementById("dz-logo"));
+
+        function syncPresetHighlight() {
+          const w = String(wField.value);
+          const h = String(hField.value);
+          chipRow.querySelectorAll(".chip").forEach((c) => {
+            const match = c.getAttribute("data-w") === w && c.getAttribute("data-h") === h;
+            c.classList.toggle("is-active", match);
+          });
+        }
+
+        chipRow.querySelectorAll(".chip").forEach((b) => {
+          b.addEventListener("click", () => {
+            wField.value = b.getAttribute("data-w") || wField.value;
+            hField.value = b.getAttribute("data-h") || hField.value;
+            syncPresetHighlight();
+          });
+        });
+
+        wField.addEventListener("input", syncPresetHighlight);
+        hField.addEventListener("input", syncPresetHighlight);
+        syncPresetHighlight();
+
+        /** @type {HTMLInputElement} */
+        const volSlider = document.getElementById("volume_slider");
+        /** @type {HTMLInputElement} */
+        const volNum = document.getElementById("volume_db_num");
+        const volMinus = document.getElementById("vol_minus");
+        const volPlus = document.getElementById("vol_plus");
+        const VOL_MIN = -96;
+        const VOL_MAX = 24;
+        const SLIDER_MIN = -24;
+        const SLIDER_MAX = 24;
+
+        function clampVol(x) {
+          let n = Number(x);
+          if (!Number.isFinite(n)) return 0;
+          return Math.min(VOL_MAX, Math.max(VOL_MIN, Math.round(n * 2) / 2));
+        }
+
+        function syncSliderThumbFromNum() {
+          const v = clampVol(volNum.value);
+          volNum.value = String(v);
+          let s = v;
+          if (s < SLIDER_MIN) s = SLIDER_MIN;
+          if (s > SLIDER_MAX) s = SLIDER_MAX;
+          volSlider.value = String(s);
+        }
+
+        volSlider.addEventListener("input", () => {
+          const v = clampVol(volSlider.value);
+          volNum.value = String(v);
+        });
+
+        volNum.addEventListener("input", syncSliderThumbFromNum);
+        volNum.addEventListener("change", syncSliderThumbFromNum);
+
+        volMinus.addEventListener("click", () => {
+          volNum.value = String(clampVol(volNum.value) - 1);
+          syncSliderThumbFromNum();
+        });
+        volPlus.addEventListener("click", () => {
+          volNum.value = String(clampVol(volNum.value) + 1);
+          syncSliderThumbFromNum();
+        });
+
+        syncSliderThumbFromNum();
+
+        function formatDetail(detail) {
+          if (typeof detail === "string") return detail;
+          if (Array.isArray(detail)) {
+            return detail
+              .map((e) => {
+                if (typeof e === "object" && e !== null) {
+                  if ("msg" in e) return e.msg;
+                  if ("file" in e && "error" in e) return `${e.file}: ${e.error}`;
+                }
+                return JSON.stringify(e);
+              })
+              .join("; ");
+          }
+          return JSON.stringify(detail);
+        }
+
+        form.addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          banner.textContent = "";
+          banner.classList.remove("error");
+          banner.classList.remove("ok");
+          const nVid = vIn.files?.length || 0;
+          busyText.textContent = nVid > 1 ? `Đang encode ${nVid} video…` : "Đang encode với FFmpeg…";
+          busy.hidden = false;
+          busyText.hidden = false;
+          btn.disabled = true;
+          btn.setAttribute("aria-busy", "true");
+
+          const fd = new FormData(form);
+
+          try {
+            const res = await fetch("/api/process", { method: "POST", body: fd });
+            if (!res.ok) {
+              let msg = "Yêu cầu thất bại";
+              try {
+                const data = await res.json();
+                if (data && data.detail !== undefined) msg = formatDetail(data.detail);
+              } catch {
+                msg = await res.text();
+              }
+              throw new Error(msg);
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const cd = res.headers.get("Content-Disposition") || "";
+            const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+            const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
+            const name = m
+              ? decodeURIComponent(m[1] || m[2])
+              : ct.includes("zip")
+                ? "edited_batch.zip"
+                : "edited_output.mp4";
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+
+            banner.classList.add("ok");
+            banner.textContent =
+              nVid > 1
+                ? "Hoàn tất — đã tải ZIP chứa các MP4. Nếu có file lỗi, xem _batch_errors.txt trong ZIP."
+                : "Hoàn tất — file đã được tải xuống.";
+          } catch (e) {
+            banner.classList.add("error");
+            banner.textContent = e && e.message ? e.message : String(e);
+          } finally {
+            busy.hidden = true;
+            busyText.hidden = true;
+            btn.disabled = false;
+            btn.removeAttribute("aria-busy");
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
