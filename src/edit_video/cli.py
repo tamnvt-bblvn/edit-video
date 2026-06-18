@@ -44,7 +44,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--input", "-i", required=True, help="Input video path")
     parser.add_argument("--output", "-o", required=True, help="Output video path")
-    parser.add_argument("--logo", "-l", required=True, help="Logo image (e.g. PNG)")
+    parser.add_argument(
+        "--logo",
+        "-l",
+        default=None,
+        help="Logo image (e.g. PNG); bỏ qua nếu không cần watermark",
+    )
     parser.add_argument("--width", type=int, required=True, help="Output width (pixels)")
     parser.add_argument("--height", type=int, required=True, help="Output height (pixels)")
     parser.add_argument(
@@ -153,12 +158,15 @@ def main(argv: list[str] | None = None) -> int:
     _configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     try:
-        logo_px = resolve_logo_max_side_for_frame(
-            frame_w=args.width,
-            frame_h=args.height,
-            logo_max_side=args.logo_max_side,
-            logo_max_side_pct=args.logo_max_side_pct,
-        )
+        if args.logo is not None:
+            logo_px = resolve_logo_max_side_for_frame(
+                frame_w=args.width,
+                frame_h=args.height,
+                logo_max_side=args.logo_max_side,
+                logo_max_side_pct=args.logo_max_side_pct,
+            )
+        else:
+            logo_px = 0
         res = process_video(
             input_path=args.input,
             output_path=args.output,

@@ -199,3 +199,38 @@ def test_build_filter_complex_rejects_unknown_frame_style() -> None:
             logo_anchor="tl",
             logo_max_side=120,
         )
+
+
+def test_build_filter_complex_without_logo_pad() -> None:
+    fc, maps = build_filter_complex(
+        scale_w=640,
+        scale_h=360,
+        speed=2.0,
+        overlay_x=5,
+        overlay_y=8,
+        has_audio=False,
+        frame_style="pad",
+        with_logo=False,
+    )
+    assert "[1:v]" not in fc
+    assert "[logo]" not in fc
+    assert "[wm]" not in fc
+    assert (
+        "[scaled]pad=640:360:(ow-iw)/2:(oh-ih)/2:black,setsar=1,setpts=0.5*PTS[outv]" in fc
+    )
+    assert "[outv]" in maps
+
+
+def test_build_filter_complex_without_logo_blur() -> None:
+    fc, _ = build_filter_complex(
+        scale_w=1080,
+        scale_h=1920,
+        speed=1.0,
+        overlay_x=0,
+        overlay_y=0,
+        has_audio=False,
+        frame_style="blur",
+        with_logo=False,
+    )
+    assert "[bg][scaled]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" in fc
+    assert "[logo]" not in fc

@@ -104,7 +104,10 @@ def create_app() -> FastAPI:
             list[UploadFile],
             File(description="Một hoặc nhiều video — cùng logo và cùng thông số"),
         ],
-        logo: Annotated[UploadFile, File(description="Ảnh / icon làm watermark")],
+        logo: Annotated[
+            UploadFile | None,
+            File(description="Ảnh / icon làm watermark (tuỳ chọn)"),
+        ] = None,
         width: int = Form(..., ge=16, le=7680, description="Chiều rộng đầu ra"),
         height: int = Form(..., ge=16, le=4320, description="Chiều cao đầu ra"),
         speed: float = Form(..., gt=0, le=64, description="Hệ số tốc độ (2 = nhanh gấp đôi)"),
@@ -201,24 +204,32 @@ def create_app() -> FastAPI:
             )
 
         try:
-            logo_px = resolve_logo_max_side_for_frame(
-                frame_w=width,
-                frame_h=height,
-                logo_max_side=logo_max_side,
-                logo_max_side_pct=logo_max_side_pct,
-            )
+            if logo is not None and logo.filename:
+                logo_px = resolve_logo_max_side_for_frame(
+                    frame_w=width,
+                    frame_h=height,
+                    logo_max_side=logo_max_side,
+                    logo_max_side_pct=logo_max_side_pct,
+                )
+            else:
+                logo_px = 0
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
-        lsuffix = allowed_suffix(logo, logo_extensions())
+        if logo is not None and logo.filename:
+            lsuffix = allowed_suffix(logo, logo_extensions())
+        else:
+            lsuffix = None
         bound = max_upload_bytes()
 
         work = Path(tempfile.mkdtemp(prefix="edit_video_"))
-        logo_path = work / f"logo{lsuffix}"
+        logo_path: Path | None = None
         video_entries: list[tuple[str, Path]] = []
 
         try:
-            await stream_upload_to_path(logo, logo_path, max_bytes=bound)
+            if logo is not None and logo.filename:
+                logo_path = work / f"logo{lsuffix}"
+                await stream_upload_to_path(logo, logo_path, max_bytes=bound)
             for i, uf in enumerate(videos):
                 suf = allowed_suffix(uf, video_extensions())
                 dest = work / f"in_{i}{suf}"
@@ -246,7 +257,7 @@ def create_app() -> FastAPI:
             r = process_video(
                 str(inp),
                 str(outp),
-                str(logo_path),
+                str(logo_path) if logo_path is not None else None,
                 width,
                 height,
                 speed,

@@ -144,6 +144,7 @@ def build_filter_complex(
     frame_style: str = "blur",
     blur_sigma: float = 26.0,
     logo_anchor: str = "tr",
+    with_logo: bool = True,
 ) -> tuple[str, list[str]]:
     fs = frame_style.strip().lower()
     if fs not in FRAME_STYLES:
@@ -162,31 +163,42 @@ def build_filter_complex(
         t = f"{v:.8f}".rstrip("0").rstrip(".")
         return t if t else "0"
 
-    if logo_max_side <= 0:
-        logo_chain = "[1:v]setsar=1[logo]"
-    else:
-        m = logo_max_side
-        logo_chain = f"[1:v]{logo_scale_to_max_side_filter(m)},setsar=1[logo]"
-
-    xy = logo_overlay_xy_expr(anchor, overlay_x, overlay_y)
-    overlay_on_fg = f"[scaled][logo]overlay={xy}[wm]"
+    if with_logo:
+        if logo_max_side <= 0:
+            logo_chain = "[1:v]setsar=1[logo]"
+        else:
+            m = logo_max_side
+            logo_chain = f"[1:v]{logo_scale_to_max_side_filter(m)},setsar=1[logo]"
+        xy = logo_overlay_xy_expr(anchor, overlay_x, overlay_y)
+        overlay_on_fg = f"[scaled][logo]overlay={xy}[wm]"
 
     if fs == "pad":
         scale_only = (
             f"[0:v]scale={W}:{H}:force_original_aspect_ratio=decrease:"
             f"force_divisible_by=2[scaled]"
         )
-        pad_pts = (
-            f"[wm]pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:black,"
-            f"setsar=1,setpts={setpts_es}*PTS[outv]"
-        )
-        parts: list[str] = [scale_only, logo_chain, overlay_on_fg, pad_pts]
+        if with_logo:
+            pad_pts = (
+                f"[wm]pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:black,"
+                f"setsar=1,setpts={setpts_es}*PTS[outv]"
+            )
+            parts: list[str] = [scale_only, logo_chain, overlay_on_fg, pad_pts]
+        else:
+            pad_pts = (
+                f"[scaled]pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:black,"
+                f"setsar=1,setpts={setpts_es}*PTS[outv]"
+            )
+            parts = [scale_only, pad_pts]
     elif fs == "stretch":
         stretch_full = (
             f"[0:v]scale={W}:{H}:force_divisible_by=2,setsar=1[scaled]"
         )
-        out_pts = f"[wm]setsar=1,setpts={setpts_es}*PTS[outv]"
-        parts = [stretch_full, logo_chain, overlay_on_fg, out_pts]
+        if with_logo:
+            out_pts = f"[wm]setsar=1,setpts={setpts_es}*PTS[outv]"
+            parts = [stretch_full, logo_chain, overlay_on_fg, out_pts]
+        else:
+            out_pts = f"[scaled]setsar=1,setpts={setpts_es}*PTS[outv]"
+            parts = [stretch_full, out_pts]
     else:
         sig = _sigma_str(float(blur_sigma))
         split_in = "[0:v]split=2[vbg][vfg]"
@@ -199,10 +211,16 @@ def build_filter_complex(
             f"[vfg]scale={W}:{H}:force_original_aspect_ratio=decrease:"
             f"force_divisible_by=2,setsar=1,setpts={setpts_es}*PTS[scaled]"
         )
-        stack_fg = (
-            "[bg][wm]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2,setsar=1[outv]"
-        )
-        parts = [split_in, bg_blur, fg_scale, logo_chain, overlay_on_fg, stack_fg]
+        if with_logo:
+            stack_fg = (
+                "[bg][wm]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2,setsar=1[outv]"
+            )
+            parts = [split_in, bg_blur, fg_scale, logo_chain, overlay_on_fg, stack_fg]
+        else:
+            stack_fg = (
+                "[bg][scaled]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2,setsar=1[outv]"
+            )
+            parts = [split_in, bg_blur, fg_scale, stack_fg]
 
     maps: list[str] = ["-map", "[outv]"]
 
@@ -234,7 +252,7 @@ def build_ffmpeg_command(
     *,
     input_path: str,
     output_path: str,
-    logo_path: str,
+    logo_path: str | None,
     scale_w: int,
     scale_h: int,
     speed: float,
@@ -254,6 +272,7 @@ def build_ffmpeg_command(
     ffmpeg = ffmpeg_on_path()
     if not ffmpeg:
         raise ToolNotFoundError("ffmpeg not found on PATH.")
+    with_logo = logo_path is not None
     fc, stream_maps = build_filter_complex(
         scale_w=scale_w,
         scale_h=scale_h,
@@ -266,6 +285,7 @@ def build_ffmpeg_command(
         frame_style=frame_style,
         blur_sigma=blur_sigma,
         logo_anchor=logo_anchor,
+        with_logo=with_logo,
     )
     cmd: list[str] = [
         ffmpeg,
@@ -273,25 +293,34 @@ def build_ffmpeg_command(
         "-y",
         "-i",
         os.path.abspath(input_path),
-        "-loop",
-        "1",
-        "-framerate",
-        str(logo_fps),
-        "-i",
-        os.path.abspath(logo_path),
-        "-filter_complex",
-        fc,
-        *stream_maps,
-        "-shortest",
-        "-c:v",
-        "libx264",
-        "-preset",
-        preset,
-        "-crf",
-        str(crf),
-        "-pix_fmt",
-        "yuv420p",
     ]
+    if with_logo:
+        cmd.extend(
+            [
+                "-loop",
+                "1",
+                "-framerate",
+                str(logo_fps),
+                "-i",
+                os.path.abspath(logo_path),
+            ]
+        )
+    cmd.extend(
+        [
+            "-filter_complex",
+            fc,
+            *stream_maps,
+            "-shortest",
+            "-c:v",
+            "libx264",
+            "-preset",
+            preset,
+            "-crf",
+            str(crf),
+            "-pix_fmt",
+            "yuv420p",
+        ]
+    )
     if has_audio:
         cmd.extend(["-c:a", "aac", "-b:a", audio_bitrate])
     else:

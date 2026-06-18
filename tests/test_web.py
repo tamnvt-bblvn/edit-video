@@ -24,5 +24,7 @@ def test_index_contains_upload_form() -> None:
     text = r.text
     assert 'id="videos"' in text
     assert 'id="logo"' in text
+    assert 'data-w="1080" data-h="1920"' in text
+    assert 'header-stats' in text
     assert "/api/process" in text
     assert 'name="logo_max_side_pct"' in text

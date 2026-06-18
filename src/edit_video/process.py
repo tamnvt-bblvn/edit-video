@@ -25,7 +25,7 @@ class ProcessVideoResult:
 def process_video(
     input_path: str,
     output_path: str,
-    logo_path: str,
+    logo_path: str | None,
     scale_w: int,
     scale_h: int,
     speed: float,
@@ -46,7 +46,7 @@ def process_video(
     job_ctx: str | None = None,
 ) -> ProcessVideoResult:
     """
-    Scale main video, change playback speed, overlay a logo, re-encode to H.264/AAC.
+    Scale main video, change playback speed, optionally overlay a logo, re-encode to H.264/AAC.
 
     Requires ``ffmpeg`` and ``ffprobe`` on PATH.
 
@@ -78,12 +78,10 @@ def process_video(
     if blur_sigma < 0.5 or blur_sigma > 100.0:
         raise ValueError("blur_sigma must be between 0.5 and 100")
 
-    for label, p in (
-        ("input", input_path),
-        ("logo", logo_path),
-    ):
-        if not os.path.isfile(p):
-            raise FileNotFoundError(f"{label} file not found: {p}")
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"input file not found: {input_path}")
+    if logo_path is not None and not os.path.isfile(logo_path):
+        raise FileNotFoundError(f"logo file not found: {logo_path}")
 
     out_dir = os.path.dirname(os.path.abspath(output_path))
     if out_dir and not os.path.isdir(out_dir):

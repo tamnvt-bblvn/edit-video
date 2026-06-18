@@ -64,7 +64,8 @@
       <main class="main" id="main">
         <form id="main-form" class="stack" autocomplete="off" aria-describedby="form-help" novalidate>
           <p id="form-help" class="visually-hidden">
-            Chọn một hoặc nhiều video và một logo, điều chỉnh thông số; một file thì tải MP4, nhiều file thì tải ZIP.
+            Chọn một hoặc nhiều video; logo là tuỳ chọn. Điều chỉnh thông số — một file thì tải MP4, nhiều file thì tải
+            ZIP.
           </p>
 
           <section class="panel" aria-labelledby="sec-input-heading">
@@ -76,7 +77,9 @@
                   <h2 id="sec-input-heading" class="panel-title">Video &amp; watermark</h2>
                 </div>
               </div>
-              <p class="panel-desc">Một hoặc nhiều video (cùng định dạng cho phép), một logo áp dụng cho tất cả.</p>
+              <p class="panel-desc">
+                Một hoặc nhiều video (cùng định dạng cho phép). Logo watermark là tuỳ chọn — bỏ trống nếu không cần.
+              </p>
             </header>
 
             <div class="upload-grid">
@@ -112,14 +115,15 @@
               </div>
 
               <div class="upload-field">
-                <label class="field-label" for="logo">Logo / icon watermark</label>
+                <label class="field-label" for="logo"
+                  >Logo / icon watermark <span class="label-hint">(tuỳ chọn)</span></label
+                >
                 <label class="dropzone dropzone-card" id="dz-logo" data-dropzone>
                   <input
                     id="logo"
                     name="logo"
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif"
-                    required
                     class="dropzone-input"
                   />
                   <span class="dropzone-surface">
@@ -136,7 +140,7 @@
                         />
                       </svg>
                     </span>
-                    <span class="dz-title">Kéo thả ảnh logo hoặc bấm chọn</span>
+                    <span class="dz-title">Kéo thả ảnh logo hoặc bấm chọn (có thể bỏ qua)</span>
                     <span class="dz-hint">PNG · JPG · WebP · GIF</span>
                     <span class="file-chip" id="logo-chip" hidden></span>
                   </span>
@@ -166,6 +170,7 @@
                 <button type="button" class="chip" data-w="854" data-h="480">480p</button>
                 <button type="button" class="chip" data-w="1280" data-h="720">720p</button>
                 <button type="button" class="chip is-active" data-w="1920" data-h="1080">1080p</button>
+                <button type="button" class="chip" data-w="1080" data-h="1920">1080×1920</button>
                 <button type="button" class="chip" data-w="3840" data-h="2160">4K</button>
               </div>
             </fieldset>
@@ -235,7 +240,10 @@
               <div class="field">
                 <label for="logo_max_side_pct">
                   Logo theo khung (% cạnh dài)
-                  <span class="label-hint">Dựa trên max(chiều ngang, chiều dọc) đầu ra — 1080×1920 và 1920×1080 cho cùng cỡ logo · ảnh nhỏ được phóng to · 0 = dùng px · thường 8–15%</span>
+                  <span class="label-hint"
+                    >Dựa trên max(chiều ngang, chiều dọc) đầu ra — 1080×1920 và 1920×1080 cho cùng cỡ logo · ảnh nhỏ
+                    được phóng to · 0 = dùng px · thường 8–15%</span
+                  >
                 </label>
                 <input
                   id="logo_max_side_pct"
@@ -250,7 +258,9 @@
               <div class="field">
                 <label for="logo_max_side">
                   Cạnh tối đa logo (px)
-                  <span class="label-hint">Chỉ khi % = 0 · cạnh dài logo ≈ giá trị này (ảnh nhỏ được phóng to) · 0 = pixel gốc</span>
+                  <span class="label-hint"
+                    >Chỉ khi % = 0 · cạnh dài logo ≈ giá trị này (ảnh nhỏ được phóng to) · 0 = pixel gốc</span
+                  >
                 </label>
                 <input id="logo_max_side" name="logo_max_side" type="number" min="0" max="4096" step="1" value="120" />
               </div>
@@ -339,7 +349,7 @@
                     <label for="preset">Preset x264</label>
                     <select id="preset" name="preset">
                       {% for opt in preset_options %}
-                      <option value="{{ opt.value }}"{% if opt.selected %} selected{% endif %}>{{ opt.value }}</option>
+                      <option value="{{ opt.value }}" {% if opt.selected %} selected{% endif %}>{{ opt.value }}</option>
                       {% endfor %}
                     </select>
                   </div>
